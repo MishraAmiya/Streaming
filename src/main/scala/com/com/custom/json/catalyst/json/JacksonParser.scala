@@ -43,8 +43,8 @@ class JacksonParser(
    * `makeConverter()` to handle a row wrapped with an array.
    */
   private def makeRootConverter(st: StructType): JsonParser => Seq[InternalRow] = {
-    val elementConverter = makeConverter(st,null)
-    val fieldConverters = st.map(sf => makeConverter(sf.dataType,sf)).toArray
+    val elementConverter = makeConverter(st,Metadata.empty)
+    val fieldConverters = st.map(sf => makeConverter(sf.dataType,sf.metadata)).toArray
     (parser: JsonParser) => parseJsonToken[Seq[InternalRow]](parser, st) {
       case START_OBJECT => convertObject(parser, st, fieldConverters) :: Nil
         // SPARK-3308: support reading top level JSON arrays and take every element
@@ -76,34 +76,34 @@ class JacksonParser(
    * Create a converter which converts the JSON documents held by the `JsonParser`
    * to a value according to a desired schema.
    */
-  def makeConverter(dataType: DataType,sf: StructField): ValueConverter = (dataType,sf) match {
-    case (b:BooleanType,sf:StructField) =>
+  def makeConverter(dataType: DataType,md: Metadata): ValueConverter = (dataType,md) match {
+    case (b:BooleanType,md:Metadata) =>
       (parser: JsonParser) => parseJsonToken[java.lang.Boolean](parser, dataType) {
         case VALUE_TRUE => true
         case VALUE_FALSE => false
       }
 
-    case (bt:ByteType,sf:StructField) =>
+    case (bt:ByteType,md:Metadata) =>
       (parser: JsonParser) => parseJsonToken[java.lang.Byte](parser, dataType) {
         case VALUE_NUMBER_INT => parser.getByteValue
       }
 
-    case (sh:ShortType,sf:StructField) =>
+    case (sh:ShortType,md:Metadata) =>
       (parser: JsonParser) => parseJsonToken[java.lang.Short](parser, dataType) {
         case VALUE_NUMBER_INT => parser.getShortValue
       }
 
-    case (it:IntegerType,sf:StructField) =>
+    case (it:IntegerType,md:Metadata) =>
       (parser: JsonParser) => parseJsonToken[java.lang.Integer](parser, dataType) {
         case VALUE_NUMBER_INT => parser.getIntValue
       }
 
-    case (lo:LongType,sf:StructField) =>
+    case (lo:LongType,md:Metadata) =>
       (parser: JsonParser) => parseJsonToken[java.lang.Long](parser, dataType) {
         case VALUE_NUMBER_INT => parser.getLongValue
       }
 
-    case (fl:FloatType,sf:StructField) =>
+    case (fl:FloatType,md:Metadata) =>
       (parser: JsonParser) => parseJsonToken[java.lang.Float](parser, dataType) {
         case VALUE_NUMBER_INT | VALUE_NUMBER_FLOAT =>
           parser.getFloatValue
@@ -118,7 +118,7 @@ class JacksonParser(
           }
       }
 
-    case (dou:DoubleType,sf:StructField) =>
+    case (dou:DoubleType,md:Metadata) =>
       (parser: JsonParser) => parseJsonToken[java.lang.Double](parser, dataType) {
         case VALUE_NUMBER_INT | VALUE_NUMBER_FLOAT =>
           parser.getDoubleValue
@@ -133,7 +133,7 @@ class JacksonParser(
           }
       }
 
-    case (str:StringType,sf:StructField) =>
+    case (str:StringType,md:Metadata) =>
       (parser: JsonParser) => parseJsonToken[UTF8String](parser, dataType) {
         case VALUE_STRING =>
           UTF8String.fromString(parser.getText)
@@ -147,7 +147,7 @@ class JacksonParser(
           UTF8String.fromBytes(writer.toByteArray)
       }
 
-    case (time:TimestampType,sf:StructField) =>
+    case (time:TimestampType,md:Metadata) =>
       (parser: JsonParser) => parseJsonToken[java.lang.Long](parser, dataType) {
         case VALUE_STRING =>
           val stringValue = parser.getText
@@ -166,8 +166,8 @@ class JacksonParser(
           parser.getLongValue * 1000000L
       }
 
-    case (date:DateType,sf:StructField) =>
-      val customDateFormat = if(sf != null && sf.metadata.getString("dateformat") != null && !sf.metadata.getString("dateformat").equals("null")) sf.metadata.getString("dateformat") else "yyyy-MM-dd"
+    case (date:DateType,md:Metadata) =>      
+      val customDateFormat = if(md != null && md.getString("dateformat") != null && !md.getString("dateformat").equals("null")) md.getString("dateformat") else "yyyy-MM-dd"
       val dateFormat: FastDateFormat= FastDateFormat.getInstance(customDateFormat,Locale.US)
       (parser: JsonParser) => parseJsonToken[java.lang.Integer](parser, dataType) {
         case VALUE_STRING =>
@@ -189,37 +189,38 @@ class JacksonParser(
           }
       }
 
-    case (binary:BinaryType,sf:StructField) =>
+    case (binary:BinaryType,md:Metadata) =>
       (parser: JsonParser) => parseJsonToken[Array[Byte]](parser, dataType) {
         case VALUE_STRING => parser.getBinaryValue
       }
 
-    case (dt: DecimalType,sf:StructField) =>
+    case (dt: DecimalType,md:Metadata) =>
       (parser: JsonParser) => parseJsonToken[Decimal](parser, dataType) {
         case (VALUE_NUMBER_INT | VALUE_NUMBER_FLOAT) =>
           Decimal(parser.getDecimalValue, dt.precision, dt.scale)
       }
 
-    case (st: StructType,sf:StructField) =>
-      val fieldConverters = st.map(sf => makeConverter(sf.dataType,sf)).toArray
+    case (st: StructType,md:Metadata) =>
+      val fieldConverters = st.map(sf => makeConverter(sf.dataType,sf.metadata)).toArray
       (parser: JsonParser) => parseJsonToken[InternalRow](parser, dataType) {
         case START_OBJECT => convertObject(parser, st, fieldConverters)
       }
 
-    case (at: ArrayType,sf:StructField) =>
-      val elementConverter = makeConverter(at.elementType,sf)
-      (parser: JsonParser) => parseJsonToken[ArrayData](parser, dataType) {
-        case START_ARRAY => convertArray(parser, elementConverter)
-      }
+    case (at: ArrayType,md:Metadata) =>
+       val elementConverter = makeConverter(at.elementType,md)
+          (parser: JsonParser) => parseJsonToken[ArrayData](parser, dataType) {
+            case START_ARRAY => convertArray(parser, elementConverter)
+          }
+      
 
-    case (mt: MapType,sf:StructField) =>
-      val valueConverter = makeConverter(mt.valueType,sf)
+    case (mt: MapType,md:Metadata) =>
+      val valueConverter = makeConverter(mt.valueType,md)
       (parser: JsonParser) => parseJsonToken[MapData](parser, dataType) {
         case START_OBJECT => convertMap(parser, valueConverter)
       }
 
-    case (udt: UserDefinedType[_],sf:StructField) =>
-      makeConverter(udt.sqlType,sf)
+    case (udt: UserDefinedType[_],md:Metadata) =>
+      makeConverter(udt.sqlType,md)
 
     case _ =>
       (parser: JsonParser) =>
