@@ -3,6 +3,15 @@
 3)Comparing two dates in shell script
 4)gettingDayofMonth from Date using shell script.
 5)getting year and checking wheter it is a leap year in shell script.
-6)getDayOfMonth from Date using shell script
-7)getMonthOfYear from Date using shell script
-8)
+6)getMonthOfYear from Date using shell script
+
+
+A1) array=(1 2 3 3 5)
+echo ${array[1]} it will print 2
+echo ${array[4]} it will print 5
+A2) https://stackoverflow.com/questions/11144408/convert-string-to-date-in-bash
+ex : date -d "2018-09-24" +%Y-%m-%d
+A3) https://stackoverflow.com/questions/13516000/how-to-compare-two-dates-using-unix-commands
+A4) date -d "2018-05-28" +%d it will get day value
+A5) echo $(($(($((2018 & 3)) == 0)) && $(($(($((2018 % 100)) != 0)) || $(($((2018 % 400)) == 0))))))
+A6) date -d "2018-05-28" +%m it will get month value
