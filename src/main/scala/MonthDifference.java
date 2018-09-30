@@ -31,6 +31,12 @@ public class MonthDifference {
         System.out.println("From date is: " + this.fromDate);
         System.out.println("To date is: " + this.toDate);
         int increment = 0;
+        System.out.println("Day of Month :" + this.fromDate.getDayOfMonth());
+        System.out.println("Day of Month todate:" + this.toDate.getDayOfMonth());
+        System.out.println("Year :" + this.fromDate.year());
+        System.out.println("month of year todate: "+ this.toDate.getMonthOfYear());
+        System.out.println("month of year todate: "+ this.fromDate.getMonthOfYear());
+        System.out.println("Is leap year: " + this.fromDate.year().isLeap());
         if (this.fromDate.getDayOfMonth() > this.toDate.getDayOfMonth()) {
             increment = this.monthDay[this.fromDate.getMonthOfYear() - 1];
         }
