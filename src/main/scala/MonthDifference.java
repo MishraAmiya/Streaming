@@ -44,6 +44,7 @@ public class MonthDifference {
         {
             if (this.fromDate.year().isLeap())
             {
+                System.out.println("Inside leap year");
                 increment = 29;
             }
             else
@@ -51,14 +52,17 @@ public class MonthDifference {
                 increment = 28;
             }
         }
+        System.out.println(" Increment is " + increment);
         if (increment != 0)
         {
             day = (this.toDate.getDayOfMonth() + increment) - this.fromDate.getDayOfMonth();
+            System.out.println("day is" + day);
             increment = 1;
         }
         else
         {
             day = this.toDate.getDayOfMonth() - this.fromDate.getDayOfMonth();
+            System.out.println("day in else " + day);
         }
         if ((this.fromDate.getMonthOfYear() + increment) > this.toDate.getMonthOfYear())
         {
